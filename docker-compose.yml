@@ -1,4 +1,4 @@
-version: '2'
+version: "2"
 
 services:
   api:
@@ -8,7 +8,7 @@ services:
       context: ./saleor
       dockerfile: ./Dockerfile
       args:
-        STATIC_URL: '/static/'
+        STATIC_URL: "/static/"
     restart: unless-stopped
     networks:
       - saleor-backend-tier
@@ -25,6 +25,8 @@ services:
       - /app/templates/templated_email/compiled
       # shared volume between worker and api for media
       - saleor-media:/app/media
+      # mount the importer directory
+      - ./stockmanagement:/app/stockmanagement
     command: python manage.py runserver 0.0.0.0:8000
     env_file: ./saleor/common.env
     environment:
@@ -84,7 +86,7 @@ services:
       context: ./saleor
       dockerfile: ./Dockerfile
       args:
-        STATIC_URL: '/static/'
+        STATIC_URL: "/static/"
     command: celery -A saleor worker --app=saleor.celeryconf:app --loglevel=info
     restart: unless-stopped
     networks:
