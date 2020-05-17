@@ -1,0 +1,13 @@
+version: "2"
+
+services:
+  api:
+    volumes:
+      # mount the importer directory
+      - ./stockmanagement:/app/stockmanagement
+    environment:
+      - DEFAULT_COUNTRY=AT
+      - DEFAULT_CURRENCY=EUR
+      - DJANGO_SUPERUSER_PASSWORD=admin
+      - DJANGO_SUPERUSER_EMAIL=admin@example.com
+      - DJANGO_SUPERUSER_USERNAME=admin

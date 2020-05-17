@@ -6,7 +6,7 @@ from saleor.product import models
 from saleor.product.utils.attributes import generate_name_for_variant
 from saleor.warehouse import models as wm
 from saleor.account import models as am
-from saleor.shipping import models as sm
+from saleor.shipping import models as sm, ShippingMethodType
 from django_countries.data import COUNTRIES
 from django.db import connection
 from django.utils.text import slugify
@@ -53,7 +53,9 @@ def run():
 
         for row in dictfetchall(c.execute("SELECT * FROM products_productclass")):
             product_type, _ = models.ProductType.objects.get_or_create(
-                name=row["name"], slug=slugify(row["name"]), has_variants=bool(row["has_variants"])
+                name=row["name"],
+                slug=slugify(row["name"]),
+                has_variants=bool(row["has_variants"]),
             )
             product_type_map[int(row["id"])] = product_type
 
@@ -163,11 +165,11 @@ def run():
                 "WHERE product_id=?",
                 [row["id"]],
             ).fetchone()
-            
+
             product, _ = models.Product.objects.get_or_create(
                 product_type=product_type_map[row["product_class_id"]],
                 name=row["name"],
-		        slug=slugify(row["name"]),
+                slug=slugify(row["name"]),
                 category=models.Category.objects.get(id=category[0]),
                 price_amount=row["price"],
                 currency=row["price_currency"],
@@ -211,17 +213,52 @@ def run():
         # -----------------------------------------------------------------------
 
         at_zone, _ = sm.ShippingZone.objects.get_or_create(
-            name="Austria",
-            countries=["AT"],
-            default=True
+            name="Austria", countries=["AT"], default=True
+        )
+
+        free_shipping_from = 50
+
+        standard_shipping_method, _ = sm.ShippingMethod.objects.get_or_create(
+            name="Standard Shipping",
+            type=ShippingMethodType.PRICE_BASED,
+            price_amount=10,
+            shipping_zone=at_zone,
+            minimum_order_price_amount=0,
+            maximum_order_price_amount=free_shipping_from,
+        )
+
+        free_shipping_method, _ = sm.ShippingMethod.objects.get_or_create(
+            name="Free Shipping",
+            type=ShippingMethodType.PRICE_BASED,
+            price_amount=0,
+            shipping_zone=at_zone,
+            minimum_order_price_amount=free_shipping_from,
         )
 
         countries = list(COUNTRIES.keys())
         countries.remove("AT")
+
+        free_shipping_from = 200
+
         world_zone, _ = sm.ShippingZone.objects.get_or_create(
-            name="World",
-            countries=countries,
-            default=True
+            name="World", countries=countries, default=False
+        )
+
+        standard_shipping_method, _ = sm.ShippingMethod.objects.get_or_create(
+            name="Standard Shipping",
+            type=ShippingMethodType.PRICE_BASED,
+            price_amount=20,
+            shipping_zone=world_zone,
+            minimum_order_price_amount=0,
+            maximum_order_price_amount=free_shipping_from,
+        )
+
+        free_shipping_method, _ = sm.ShippingMethod.objects.get_or_create(
+            name="Free Shipping",
+            type=ShippingMethodType.PRICE_BASED,
+            price_amount=0,
+            shipping_zone=world_zone,
+            minimum_order_price_amount=free_shipping_from,
         )
 
         # -----------------------------------------------------------------------
@@ -238,14 +275,14 @@ def run():
             country="AT",
             phone="+436801253030",
         )
-        
+
         if address:
             warehouse, _ = wm.Warehouse.objects.get_or_create(
                 name="Headquater Graz",
-                slug = slugify("Headquater Graz"),
-                #company_name = 
-                #shipping_zones = 
-                address = address,
+                slug=slugify("Headquater Graz"),
+                # company_name =
+                # shipping_zones =
+                address=address,
                 email="gernot.cseh@gmail.com",
             )
             warehouse.shipping_zones.add(at_zone, world_zone)
@@ -283,9 +320,9 @@ def run():
             stock, _ = wm.Stock.objects.get_or_create(
                 warehouse=warehouse,
                 product_variant=product_variant,
-                quantity=int(stock_quantity[0])
+                quantity=int(stock_quantity[0]),
             )
-            
+
             # Save DCA75Pro result in the product variant metadata
 
             for attr_id, attr_value in attributes.items():
